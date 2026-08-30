@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>YouTube Sync Party</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: #121212; color: #fff; display: flex; flex-direction: column; align-items: center; padding: 15px; min-height: 100vh; }
+    
+    /* Lobby Screen */
+    #lobbyScreen {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      width: 100%; max-width: 440px; margin-top: 30px;
+    }
+    .card {
+      background: #1e1e1e; border-radius: 12px; padding: 20px; width: 100%;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5); margin-bottom: 20px;
+    }
+    .card h2 { font-size: 1.1rem; margin-bottom: 8px; color: #ff0000; }
+    .input-row { display: flex; gap: 8px; margin-top: 10px; }
+    input[type="text"], input[type="number"] {
+      flex: 1; padding: 12px; border-radius: 6px; border: 1px solid #333; background: #2a2a2a; color: #fff; outline: none; font-size: 1rem;
+    }
+    button {
+      padding: 12px 18px; border-radius: 6px; border: none; background: #cc0000; color: #fff;
+      font-weight: bold; cursor: pointer; transition: 0.2s; white-space: nowrap;
+    }
+    button:hover { background: #ff0000; }
+    .error-text { color: #ff4d4d; font-size: 0.85rem; margin-top: 8px; min-height: 18px; }
+
+    /* Player Screen */
+    #playerScreen {
+      display: none; width: 100%; max-width: 800px; flex-direction: column; align-items: center;
+    }
+    .room-header {
+      width: 100%; display: flex; justify-content: space-between; align-items: center;
+      background: #1e1e1e; padding: 12px 16px; border-radius: 8px; margin-bottom: 12px;
+    }
+    .pin-badge {
+      background: #cc0000; padding: 4px 12px; border-radius: 20px; font-weight: bold; font-size: 1rem; letter-spacing: 2px;
+    }
+    .controls { margin-bottom: 12px; display: flex; gap: 8px; width: 100%; }
+    
+    .player-wrapper {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #000;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+    }
+    #player { width: 100%; height: 100%; }
+
+    #mobileUnmuteOverlay {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.8); display: none; flex-direction: column;
+      justify-content: center; align-items: center; z-index: 10; cursor: pointer;
+    }
+    #mobileUnmuteOverlay span {
+      background: #cc0000; padding: 12px 20px; border-radius: 25px; font-weight: bold; font-size: 0.95rem;
+    }
+
+    .status { margin-top: 12px; font-size: 0.85rem; color: #888; }
+  </style>
+</head>
+<body>
+
+  <div id="lobbyScreen">
+    <h1 style="margin-bottom: 20px; color: #ff0000; font-size: 1.5rem;">YouTube Watch Party</h1>
+
+    <div class="card">
+      <h2>1. Host a Party</h2>
+      <p style="color: #aaa; font-size: 0.8rem;">Paste a link to generate your 4-digit PIN.</p>
+      <div class="input-row">
+        <input type="text" id="hostUrlInput" placeholder="Paste YouTube link" />
+        <button onclick="hostRoom()">Start</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>2. Join a Party</h2>
+      <p style="color: #aaa; font-size: 0.8rem;">Enter the PIN sent by the host.</p>
+      <div class="input-row">
+        <input type="number" id="joinPinInput" placeholder="4-digit PIN" />
+        <button onclick="joinRoom()">Join</button>
+      </div>
+      <div class="error-text" id="joinError"></div>
+    </div>
+  </div>
+
+  <div id="playerScreen">
+    <div class="room-header">
+      <div>Room PIN: <span class="pin-badge" id="activePinDisplay">----</span></div>
+      <span style="font-size: 0.8rem; color: #aaa;">Share PIN with friends</span>
+    </div>
+
+    <div class="controls">
+      <input type="text" id="changeUrlInput" placeholder="Paste new YouTube link" />
+      <button onclick="changeVideo()">Switch</button>
+    </div>
+
+    <div class="player-wrapper">
+      <div id="player"></div>
+      <div id="mobileUnmuteOverlay" onclick="enableMobileAudio()">
+        <span>▶ Tap to Start Video</span>
+      </div>
+    </div>
+
+    <div class="status" id="statusText">Connecting...</div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://www.youtube.com/iframe_api"></script>
+
+  <script>
+    const socket = io();
+    let player;
+    let isProgrammaticChange = false;
+    let currentVideoId = '';
+    let isPlayerLoaded = false;
+
+    function extractVideoId(url) {
+      const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+      const match = url.match(regExp);
+      return (match && match[2].length === 11) ? match[2] : url;
+    }
+
+    function hostRoom() {
+      const input = document.getElementById('hostUrlInput').value.trim();
+      const videoId = input ? extractVideoId(input) : 'dQw4w9WgXcQ';
+      socket.emit('create_room', { videoId });
+    }
+
+    function joinRoom() {
+      const pin = document.getElementById('joinPinInput').value.trim();
+      if (!pin) return;
+      socket.emit('join_room', pin);
+    }
+
+    socket.on('room_created', (data) => openPlayerView(data.pin, data.roomState.videoId));
+    socket.on('room_joined', (data) => openPlayerView(data.pin, data.roomState.videoId));
+    socket.on('join_error', (msg) => document.getElementById('joinError').innerText = msg);
+
+    function openPlayerView(pin, videoId) {
+      currentVideoId = videoId;
+      document.getElementById('activePinDisplay').innerText = pin;
+      document.getElementById('lobbyScreen').style.display = 'none';
+      document.getElementById('playerScreen').style.display = 'flex';
+      initYouTubePlayer();
+    }
+
+    function initYouTubePlayer() {
+      if (isPlayerLoaded && player && player.loadVideoById) {
+        player.loadVideoById(currentVideoId, 0);
+        return;
+      }
+
+      player = new YT.Player('player', {
+        videoId: currentVideoId,
+        playerVars: {
+          'playsinline': 1,
+          'enablejsapi': 1,
+          'rel': 0,
+          'origin': window.location.origin
+        },
+        events: {
+          'onReady': onPlayerReady,
+          'onStateChange': onPlayerStateChange,
+          'onError': onPlayerError
+        }
+      });
+      isPlayerLoaded = true;
+    }
+
+    function onPlayerReady() {
+      document.getElementById('statusText').innerText = 'Connected & Synced';
+      player.playVideo();
+      setTimeout(() => {
+        if (player.getPlayerState() !== YT.PlayerState.PLAYING) {
+          document.getElementById('mobileUnmuteOverlay').style.display = 'flex';
+        }
+      }, 500);
+    }
+
+    function enableMobileAudio() {
+      document.getElementById('mobileUnmuteOverlay').style.display = 'none';
+      player.playVideo();
+    }
+
+    function onPlayerStateChange(event) {
+      if (isProgrammaticChange) {
+        isProgrammaticChange = false;
+        return;
+      }
+      const currentTime = player.getCurrentTime();
+      if (event.data === YT.PlayerState.PLAYING) {
+        document.getElementById('mobileUnmuteOverlay').style.display = 'none';
+        socket.emit('player_play', { currentTime });
+      } else if (event.data === YT.PlayerState.PAUSED) {
+        socket.emit('player_pause', { currentTime });
+      }
+    }
+
+    function onPlayerError(e) {
+      document.getElementById('statusText').innerText = 'Error: Video cannot be played embedded.';
+    }
+
+    function changeVideo() {
+      const input = document.getElementById('changeUrlInput').value.trim();
+      if (!input) return;
+      const videoId = extractVideoId(input);
+      socket.emit('change_video', { videoId });
+      document.getElementById('changeUrlInput').value = '';
+    }
+
+    socket.on('player_play', (data) => {
+      if (!player || !player.playVideo) return;
+      isProgrammaticChange = true;
+      if (Math.abs(player.getCurrentTime() - data.currentTime) > 1.5) {
+        player.seekTo(data.currentTime, true);
+      }
+      player.playVideo();
+    });
+
+    socket.on('player_pause', (data) => {
+      if (!player || !player.pauseVideo) return;
+      isProgrammaticChange = true;
+      player.seekTo(data.currentTime, true);
+      player.pauseVideo();
+    });
+
+    socket.on('change_video', (data) => {
+      if (!player || !player.loadVideoById) return;
+      isProgrammaticChange = true;
+      currentVideoId = data.videoId;
+      player.loadVideoById(data.videoId, 0);
+    });
+  </script>
+</body>
+</html>
