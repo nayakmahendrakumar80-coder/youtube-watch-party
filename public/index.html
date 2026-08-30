@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Watch Party Sync</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: #121212; color: #fff; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+    h1 { margin-bottom: 20px; font-size: 1.5rem; color: #ff0000; }
+    .controls { margin-bottom: 20px; display: flex; gap: 10px; width: 100%; max-width: 800px; }
+    input[type="text"] { flex: 1; padding: 10px 14px; border-radius: 6px; border: 1px solid #333; background: #1e1e1e; color: #fff; outline: none; }
+    button { padding: 10px 20px; border-radius: 6px; border: none; background: #cc0000; color: #fff; font-weight: bold; cursor: pointer; transition: 0.2s; }
+    button:hover { background: #ff0000; }
+    .player-container { width: 100%; max-width: 800px; aspect-ratio: 16 / 9; background: #000; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+    #player { width: 100%; height: 100%; }
+    .status { margin-top: 15px; font-size: 0.9rem; color: #888; }
+  </style>
+</head>
+<body>
+
+  <h1>YouTube Sync Watch Party</h1>
+
+  <div class="controls">
+    <input type="text" id="videoUrlInput" placeholder="Paste YouTube Link or Video ID (e.g. https://www.youtube.com/watch?v=dQw4w9WgXcQ)" />
+    <button onclick="changeVideo()">Load Video</button>
+  </div>
+
+  <div class="player-container">
+    <div id="player"></div>
+  </div>
+
+  <div class="status" id="statusText">Connecting to server...</div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://www.youtube.com/iframe_api"></script>
+
+  <script>
+    const socket = io();
+    let player;
+    let isProgrammaticChange = false;
+    let currentVideoId = 'M7lc1UVf-VE';
+
+    // Helper to extract YouTube Video ID
+    function extractVideoId(url) {
+      const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+      const match = url.match(regExp);
+      return (match && match[2].length === 11) ? match[2] : url;
+    }
+
+    // Called automatically by YouTube IFrame API when ready
+    function onYouTubeIframeAPIReady() {
+      player = new YT.Player('player', {
+        videoId: currentVideoId,
+        playerVars: {
+          'playsinline': 1,
+          'enablejsapi': 1,
+          'rel': 0
+        },
+        events: {
+          'onReady': onPlayerReady,
+          'onStateChange': onPlayerStateChange
+        }
+      });
+    }
+
+    function onPlayerReady(event) {
+      document.getElementById('statusText').innerText = 'Connected & Ready';
+    }
+
+    // Capture user play/pause events
+    function onPlayerStateChange(event) {
+      if (isProgrammaticChange) {
+        isProgrammaticChange = false;
+        return;
+      }
+
+      const currentTime = player.getCurrentTime();
+
+      if (event.data === YT.PlayerState.PLAYING) {
+        socket.emit('player_play', { currentTime });
+      } else if (event.data === YT.PlayerState.PAUSED) {
+        socket.emit('player_pause', { currentTime });
+      }
+    }
+
+    // Change video handler
+    function changeVideo() {
+      const input = document.getElementById('videoUrlInput').value.trim();
+      if (!input) return;
+      const videoId = extractVideoId(input);
+      socket.emit('change_video', { videoId });
+      document.getElementById('videoUrlInput').value = '';
+    }
+
+    // --- Socket Listeners (Receiving actions from other participants) ---
+
+    socket.on('sync_state', (state) => {
+      currentVideoId = state.videoId;
+      const checkReady = setInterval(() => {
+        if (player && player.loadVideoById) {
+          clearInterval(checkReady);
+          isProgrammaticChange = true;
+          player.loadVideoById(state.videoId, state.currentTime);
+          if (!state.isPlaying) {
+            player.pauseVideo();
+          }
+        }
+      }, 200);
+    });
+
+    socket.on('player_play', (data) => {
+      if (!player) return;
+      isProgrammaticChange = true;
+      if (Math.abs(player.getCurrentTime() - data.currentTime) > 1.5) {
+        player.seekTo(data.currentTime, true);
+      }
+      player.playVideo();
+    });
+
+    socket.on('player_pause', (data) => {
+      if (!player) return;
+      isProgrammaticChange = true;
+      player.seekTo(data.currentTime, true);
+      player.pauseVideo();
+    });
+
+    socket.on('player_seek', (data) => {
+      if (!player) return;
+      isProgrammaticChange = true;
+      player.seekTo(data.currentTime, true);
+    });
+
+    socket.on('change_video', (data) => {
+      if (!player) return;
+      isProgrammaticChange = true;
+      currentVideoId = data.videoId;
+      player.loadVideoById(data.videoId, 0);
+    });
+  </script>
+</body>
+</html>

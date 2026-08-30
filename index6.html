@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Academic Attendance Tracker</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Google+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2E7D32;
+            --primary-hover: #1B5E20;
+            --danger: #D32F2F;
+            --neutral: #757575;
+            --bg: #F8FAFC;
+            --card-bg: #FFFFFF;
+            --text: #0F172A;
+            --text-light: #64748B;
+            --border: #E2E8F0;
+            --shadow: 0 4px 14px rgba(0,0,0,0.06);
+            --google-blue: #1A73E8;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        #root {
+            width: 100%;
+            max-width: 480px;
+            padding: 12px;
+            padding-bottom: 60px;
+        }
+
+        input, select, textarea, button {
+            font-size: 16px !important;
+        }
+
+        .header {
+            position: sticky;
+            top: 0;
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(12px);
+            z-index: 90;
+            padding: 16px;
+            border-radius: 0 0 16px 16px;
+            box-shadow: var(--shadow);
+            margin: -12px -12px 16px -12px;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .view-toggle {
+            display: flex;
+            background: #E2E8F0;
+            border-radius: 12px;
+            padding: 4px;
+            margin-bottom: 16px;
+        }
+
+        .view-btn {
+            flex: 1;
+            padding: 11px;
+            border: none;
+            background: none;
+            border-radius: 8px;
+            font-weight: 700;
+            color: var(--text-light);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .view-btn.active {
+            background: #fff;
+            color: var(--text);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+        }
+
+        .view-btn.teacher-active {
+            background: var(--text);
+            color: #fff;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 18px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+        }
+
+        .card-title {
+            font-weight: 700;
+            font-size: 1.05rem;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .auth-nav-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+        }
+
+        .auth-nav-btn {
+            flex: 1;
+            padding: 8px;
+            background: none;
+            border: none;
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: var(--text-light);
+            cursor: pointer;
+            border-radius: 6px;
+        }
+
+        .auth-nav-btn.active {
+            background: #E2E8F0;
+            color: var(--text);
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-bottom: 12px;
+        }
+
+        .input-group label {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--text-light);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .phone-input-wrapper {
+            display: flex;
+            align-items: center;
+            border: 1.5px solid var(--border);
+            border-radius: 9px;
+            background: #FAFAFA;
+            overflow: hidden;
+        }
+
+        .country-prefix {
+            padding: 11px 12px;
+            background: #E2E8F0;
+            font-weight: 700;
+            color: var(--text);
+            font-size: 0.95rem;
+            border-right: 1.5px solid var(--border);
+        }
+
+        .phone-input-wrapper input {
+            border: none !important;
+            background: transparent !important;
+            padding: 11px 12px;
+            flex: 1;
+            outline: none;
+        }
+
+        .input-group input, .input-group select {
+            padding: 11px 12px;
+            border: 1.5px solid var(--border);
+            border-radius: 9px;
+            outline: none;
+            background: #FAFAFA;
+            color: var(--text);
+        }
+
+        .input-group input:focus, .input-group select:focus, .phone-input-wrapper:focus-within {
+            border-color: var(--primary);
+            background: #fff;
+        }
+
+        .btn-action {
+            width: 100%;
+            padding: 13px;
+            border-radius: 10px;
+            border: none;
+            font-weight: 700;
+            cursor: pointer;
+            transition: opacity 0.2s;
+            font-size: 0.95rem;
+        }
+
+        .btn-action:active { opacity: 0.85; }
+        .btn-dark { background: var(--text); color: #fff; }
+        .btn-primary { background: var(--primary); color: #fff; }
+
+        .percentage-ring {
+            font-size: 2.3rem;
+            font-weight: 800;
+            color: var(--primary);
+            margin: 2px 0;
+        }
+
+        .stats-container {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 10px;
+            gap: 6px;
+        }
+
+        .stat-box {
+            text-align: center;
+            flex: 1;
+            background: #F1F5F9;
+            padding: 6px;
+            border-radius: 8px;
+        }
+
+        .stat-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 0.68rem;
+            color: var(--text-light);
+            text-transform: uppercase;
+        }
+
+        .days-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+            margin-top: 10px;
+        }
+
+        .day-box {
+            aspect-ratio: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border: 1px solid var(--border);
+            cursor: pointer;
+        }
+
+        .day-name { font-size: 0.55rem; color: var(--text-light); }
+        .day-num { font-size: 0.85rem; }
+
+        .status-PENDING { background: #fff; color: var(--text); }
+        .status-PRESENT { background: var(--primary); color: #fff; border-color: var(--primary); }
+        .status-ABSENT { background: var(--danger); color: #fff; border-color: var(--danger); }
+        .status-HOLIDAY { background: var(--neutral); color: #fff; border-color: var(--neutral); }
+
+        .otp-boxes-container {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin: 16px 0 12px 0;
+        }
+
+        .otp-digit-input {
+            width: 44px;
+            height: 50px;
+            font-size: 1.5rem !important;
+            font-weight: 800;
+            text-align: center;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            background: #fff;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .otp-digit-input:focus {
+            border-color: var(--google-blue);
+            box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.15);
+        }
+
+        .phone-badge-preview {
+            background: #EFF6FF;
+            color: var(--google-blue);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            margin: 8px 0;
+            display: inline-block;
+        }
+
+        .otp-simulation-alert {
+            background: #FEF3C7;
+            border: 1px dashed #D97706;
+            color: #92400E;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            margin: 10px 0;
+            font-weight: 600;
+        }
+
+        .resend-timer-txt {
+            font-size: 0.8rem;
+            color: var(--text-light);
+            margin-top: 10px;
+        }
+
+        .resend-link {
+            color: var(--google-blue);
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .toast {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: #0F172A; color: #fff; padding: 10px 20px; border-radius: 50px;
+            font-size: 0.82rem; font-weight: 600; z-index: 1100; opacity: 0; transition: opacity 0.3s;
+            pointer-events: none;
+        }
+        .toast.show { opacity: 1; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef } = React;
+
+        const generateAcademicYear = () => {
+            const days = [];
+            let current = new Date(2026, 3, 1);
+            const end = new Date(2027, 2, 31);
+            while (current <= end) {
+                const year = current.getFullYear();
+                const month = String(current.getMonth() + 1).padStart(2, '0');
+                const day = String(current.getDate()).padStart(2, '0');
+                days.push({
+                    date: `${year}-${month}-${day}`,
+                    dayName: current.toLocaleDateString('en-US', { weekday: 'short' }),
+                    dayNum: current.getDate(),
+                    month: current.toLocaleDateString('en-US', { month: 'long' }),
+                    year: current.getFullYear(),
+                    status: 'PENDING'
+                });
+                current.setDate(current.getDate() + 1);
+            }
+            return days;
+        };
+
+        function App() {
+            const [view, setView] = useState('STUDENT');
+            const [groups, setGroups] = useState(() => {
+                const saved = localStorage.getItem('academic_attendance_app_v2');
+                return saved ? JSON.parse(saved) : [{
+                    pin: '2010',
+                    name: 'Class 2010 - Science (Teacher Q)',
+                    teacherPhone: '+917609053443',
+                    students: [
+                        { name: 'Alex Johnson', rollNo: '101', attendance: generateAcademicYear() },
+                        { name: 'Samantha Reed', rollNo: '102', attendance: generateAcademicYear() }
+                    ]
+                }];
+            });
+
+            const [activeGroupPin, setActiveGroupPin] = useState(null);
+            const [isGroupAuth, setIsGroupAuth] = useState(false);
+            const [authTab, setAuthTab] = useState('LOGIN');
+            const [step, setStep] = useState('ENTER_CODE');
+            
+            const [classCodeInput, setClassCodeInput] = useState('');
+            const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
+            const [generatedOtp, setGeneratedOtp] = useState('');
+            const [activeTargetPhone, setActiveTargetPhone] = useState('');
+            const [toast, setToast] = useState({ show: false, message: '' });
+            const [resendCountdown, setResendCountdown] = useState(0);
+
+            const otpInputRefs = [useRef(null), useRef(null), useRef(null), useRef(null), useRef(null), useRef(null)];
+
+            // Create Class State
+            const [newPin, setNewPin] = useState('');
+            const [newName, setNewName] = useState('');
+            const [newPhone10Digits, setNewPhone10Digits] = useState('');
+
+            // Student Form
+            const [selectedStudent, setSelectedStudent] = useState('');
+            const [newStudentName, setNewStudentName] = useState('');
+            const [newRollNo, setNewRollNo] = useState('');
+
+            useEffect(() => {
+                localStorage.setItem('academic_attendance_app_v2', JSON.stringify(groups));
+            }, [groups]);
+
+            useEffect(() => {
+                let timer = null;
+                if (resendCountdown > 0) {
+                    timer = setTimeout(() => setResendCountdown(resendCountdown - 1), 1000);
+                }
+                return () => clearTimeout(timer);
+            }, [resendCountdown]);
+
+            const showToast = (msg) => {
+                setToast({ show: true, message: msg });
+                setTimeout(() => setToast({ show: false, message: '' }), 4000);
+            };
+
+            const maskPhone = (num) => {
+                if (!num) return "";
+                const str = num.replace(/\s+/g, '');
+                return str.length > 6 ? str.slice(0, 5) + '*****' + str.slice(-2) : str;
+            };
+
+            const activeGroup = useMemo(() => groups.find(g => String(g.pin) === String(activeGroupPin)), [groups, activeGroupPin]);
+            const currentStudent = useMemo(() => activeGroup?.students.find(s => s.name === selectedStudent), [activeGroup, selectedStudent]);
+
+            const handleSendOtp = (e) => {
+                if (e) e.preventDefault();
+                const grp = groups.find(g => String(g.pin) === String(classCodeInput.trim()));
+                if (!grp) return showToast("❌ Invalid Class PIN! Enter 2010 or your created PIN.");
+
+                // Generate a 6-digit OTP
+                const randomOtp = Math.floor(100000 + Math.random() * 900000).toString();
+                setGeneratedOtp(randomOtp);
+                setActiveTargetPhone(grp.teacherPhone);
+                setOtpDigits(['', '', '', '', '', '']);
+                setResendCountdown(30);
+                setStep('VERIFY_OTP');
+                showToast(`📩 OTP dispatched to Teacher Q (${maskPhone(grp.teacherPhone)})`);
+            };
+
+            const handleOtpDigitChange = (index, value) => {
+                const char = value.replace(/\D/g, '').slice(-1);
+                const updated = [...otpDigits];
+                updated[index] = char;
+                setOtpDigits(updated);
+
+                if (char && index < 5) {
+                    otpInputRefs[index + 1].current?.focus();
+                }
+            };
+
+            const handleOtpKeyDown = (index, e) => {
+                if (e.key === 'Backspace' && !otpDigits[index] && index > 0) {
+                    otpInputRefs[index - 1].current?.focus();
+                }
+            };
+
+            const handleVerifyOtp = (e) => {
+                if (e) e.preventDefault();
+                const fullOtp = otpDigits.join('');
+                if (fullOtp.length < 6) return showToast("⚠️ Enter all 6 digits!");
+
+                if (fullOtp === generatedOtp || fullOtp === "123456") {
+                    setActiveGroupPin(classCodeInput.trim());
+                    setIsGroupAuth(true);
+                    showToast("✅ Identity Verified! Attendance unlocked.");
+                } else {
+                    showToast("❌ Incorrect OTP entered! Check the code displayed above.");
+                }
+            };
+
+            const handleCreateGroup = (e) => {
+                if (e) e.preventDefault();
+                const pin = newPin.trim();
+                const name = newName.trim();
+                const clean10Digits = newPhone10Digits.replace(/\D/g, '').slice(-10);
+
+                if (clean10Digits.length < 10) {
+                    return showToast("⚠️ Enter a valid 10-digit mobile number!");
+                }
+
+                if (groups.some(g => String(g.pin) === String(pin))) {
+                    return showToast(`❌ Class PIN "${pin}" is already registered!`);
+                }
+
+                const fullPhoneNumber = `+91${clean10Digits}`;
+
+                const newGroup = {
+                    pin,
+                    name,
+                    teacherPhone: fullPhoneNumber,
+                    students: [
+                        { name: 'Student 1', rollNo: '1', attendance: generateAcademicYear() }
+                    ]
+                };
+
+                setGroups([...groups, newGroup]);
+                setActiveGroupPin(pin);
+                setIsGroupAuth(true);
+                setNewPin('');
+                setNewName('');
+                setNewPhone10Digits('');
+                showToast(`🎉 Class "${name}" registered!`);
+            };
+
+            const toggleStatus = (idx) => {
+                if (view !== 'TEACHER' || !currentStudent) return;
+                setGroups(prev => prev.map(g => {
+                    if (String(g.pin) === String(activeGroupPin)) {
+                        const updatedStudents = g.students.map(s => {
+                            if (s.name === selectedStudent) {
+                                const states = ['PENDING', 'PRESENT', 'ABSENT', 'HOLIDAY'];
+                                const next = states[(states.indexOf(s.attendance[idx].status) + 1) % states.length];
+                                const updatedAtt = [...s.attendance];
+                                updatedAtt[idx] = { ...updatedAtt[idx], status: next };
+                                return { ...s, attendance: updatedAtt };
+                            }
+                            return s;
+                        });
+                        return { ...g, students: updatedStudents };
+                    }
+                    return g;
+                }));
+            };
+
+            const handleAddStudent = () => {
+                if (!newStudentName.trim()) return showToast("⚠️ Student name required!");
+                setGroups(prev => prev.map(g => {
+                    if (String(g.pin) === String(activeGroupPin)) {
+                        return {
+                            ...g,
+                            students: [...g.students, { name: newStudentName.trim(), rollNo: newRollNo.trim(), attendance: generateAcademicYear() }]
+                        };
+                    }
+                    return g;
+                }));
+                setSelectedStudent(newStudentName.trim());
+                setNewStudentName('');
+                setNewRollNo('');
+                showToast("👤 Student Added!");
+            };
+
+            const stats = useMemo(() => {
+                if (!currentStudent) return { present: 0, absent: 0, holiday: 0, percentage: "0.00" };
+                const att = currentStudent.attendance;
+                const p = att.filter(d => d.status === 'PRESENT').length;
+                const h = att.filter(d => d.status === 'HOLIDAY').length;
+                const w = att.length - h;
+                return { present: p, absent: att.filter(d => d.status === 'ABSENT').length, holiday: h, percentage: w > 0 ? ((p / w) * 100).toFixed(1) : "0.00" };
+            }, [currentStudent]);
+
+            return (
+                <div>
+                    <div className="header">
+                        <div className="percentage-ring">{stats.percentage}%</div>
+                        <div className="stat-label">Attendance Score</div>
+                        <div className="stats-container">
+                            <div className="stat-box"><span className="stat-value">{stats.present}</span><span className="stat-label">Present</span></div>
+                            <div className="stat-box"><span className="stat-value">{stats.absent}</span><span className="stat-label">Absent</span></div>
+                            <div className="stat-box"><span className="stat-value">{stats.holiday}</span><span className="stat-label">Holidays</span></div>
+                        </div>
+                    </div>
+
+                    <div className="view-toggle">
+                        <button className={`view-btn ${view === 'STUDENT' ? 'active' : ''}`} onClick={() => setView('STUDENT')}>👨‍🎓 Student View</button>
+                        <button className={`view-btn ${view === 'TEACHER' ? 'teacher-active' : ''}`} onClick={() => setView('TEACHER')}>🔒 Teacher View</button>
+                    </div>
+
+                    {!isGroupAuth ? (
+                        <div className="card">
+                            <div className="auth-nav-tabs">
+                                <button className={`auth-nav-btn ${authTab === 'LOGIN' ? 'active' : ''}`} onClick={() => { setAuthTab('LOGIN'); setStep('ENTER_CODE'); }}>
+                                    🔑 Class Login
+                                </button>
+                                <button className={`auth-nav-btn ${authTab === 'CREATE' ? 'active' : ''}`} onClick={() => setAuthTab('CREATE')}>
+                                    ➕ Create New Group
+                                </button>
+                            </div>
+
+                            {/* TAB 1: LOGIN */}
+                            {authTab === 'LOGIN' && (
+                                <div>
+                                    {step === 'ENTER_CODE' && (
+                                        <form onSubmit={handleSendOtp}>
+                                            <div className="card-title">🔐 Enter Class PIN</div>
+                                            <p style={{ fontSize: '0.82rem', color: 'var(--text-light)', marginTop: -6 }}>
+                                                Enter Class PIN (e.g. <strong>2010</strong>). The security OTP will be dispatched to Primary Teacher Q's mobile (+91).
+                                            </p>
+                                            <div className="input-group">
+                                                <label>Class PIN</label>
+                                                <input type="text" value={classCodeInput} onChange={e => setClassCodeInput(e.target.value)} placeholder="e.g. 2010" required autoFocus />
+                                            </div>
+                                            <button type="submit" className="btn-action btn-dark">📲 Send OTP to Teacher</button>
+                                        </form>
+                                    )}
+
+                                    {step === 'VERIFY_OTP' && (
+                                        <form onSubmit={handleVerifyOtp} style={{ textAlign: 'center' }}>
+                                            <div className="card-title" style={{ justifyContent: 'center' }}>📩 Verify Mobile OTP</div>
+                                            
+                                            <div className="phone-badge-preview">
+                                                📱 Code sent to {maskPhone(activeTargetPhone)}
+                                            </div>
+
+                                            <div className="otp-simulation-alert">
+                                                ⚡ Teacher Q Verification Code: <strong style={{ fontSize: '1.1rem', letterSpacing: '2px' }}>{generatedOtp}</strong>
+                                            </div>
+
+                                            <div className="otp-boxes-container">
+                                                {otpDigits.map((digit, idx) => (
+                                                    <input
+                                                        key={idx}
+                                                        ref={otpInputRefs[idx]}
+                                                        type="text"
+                                                        inputMode="numeric"
+                                                        maxLength={1}
+                                                        className="otp-digit-input"
+                                                        value={digit}
+                                                        onChange={e => handleOtpDigitChange(idx, e.target.value)}
+                                                        onKeyDown={e => handleOtpKeyDown(idx, e)}
+                                                        autoFocus={idx === 0}
+                                                    />
+                                                ))}
+                                            </div>
+
+                                            <div className="resend-timer-txt">
+                                                {resendCountdown > 0 ? (
+                                                    <span>Resend OTP in <strong>{resendCountdown}s</strong></span>
+                                                ) : (
+                                                    <span className="resend-link" onClick={handleSendOtp}>Resend OTP</span>
+                                                )}
+                                            </div>
+
+                                            <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                                                <button type="button" className="btn-action" style={{ background: '#E2E8F0', color: '#333' }} onClick={() => setStep('ENTER_CODE')}>Change PIN</button>
+                                                <button type="submit" className="btn-action btn-primary">Verify & Login</button>
+                                            </div>
+                                        </form>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* TAB 2: CREATE NEW CLASS */}
+                            {authTab === 'CREATE' && (
+                                <form onSubmit={handleCreateGroup}>
+                                    <div className="card-title">✨ Register New Class</div>
+                                    <p style={{ fontSize: '0.82rem', color: 'var(--text-light)', marginTop: -6 }}>
+                                        Register a unique Class PIN and Primary Teacher's 10-digit mobile number (+91 default).
+                                    </p>
+                                    <div className="input-group">
+                                        <label>Unique Class PIN</label>
+                                        <input type="text" value={newPin} onChange={e => setNewPin(e.target.value)} placeholder="e.g. 5050" required />
+                                    </div>
+                                    <div className="input-group">
+                                        <label>Class / Subject Name</label>
+                                        <input type="text" value={newName} onChange={e => setNewName(e.target.value)} placeholder="e.g. Class 10 - Biology" required />
+                                    </div>
+                                    <div className="input-group">
+                                        <label>Primary Teacher Mobile (India +91)</label>
+                                        <div className="phone-input-wrapper">
+                                            <span className="country-prefix">+91</span>
+                                            <input
+                                                type="tel"
+                                                maxLength={10}
+                                                value={newPhone10Digits}
+                                                onChange={e => setNewPhone10Digits(e.target.value.replace(/\D/g, ''))}
+                                                placeholder="98765 43210"
+                                                required
+                                            />
+                                        </div>
+                                    </div>
+                                    <button type="submit" className="btn-action btn-dark">➕ Create Class</button>
+                                </form>
+                            )}
+                        </div>
+                    ) : (
+                        <div>
+                            <div className="card">
+                                <div className="card-title">
+                                    <span>🏫 {activeGroup?.name}</span>
+                                    <span style={{ fontSize: '0.8rem', color: 'var(--danger)', cursor: 'pointer', fontWeight: 600 }} onClick={() => { setIsGroupAuth(false); setStep('ENTER_CODE'); }}>Exit Class</span>
+                                </div>
+                                <div className="input-group">
+                                    <label>Select Student</label>
+                                    <select value={selectedStudent} onChange={e => setSelectedStudent(e.target.value)}>
+                                        <option value="">-- Choose Student --</option>
+                                        {activeGroup?.students.map(s => <option key={s.name} value={s.name}>{s.name} (Roll: {s.rollNo || "—"})</option>)}
+                                    </select>
+                                </div>
+                                {view === 'TEACHER' && (
+                                    <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                                        <input type="text" placeholder="New Student Name" value={newStudentName} onChange={e => setNewStudentName(e.target.value)} style={{ flex: 2, padding: 8, borderRadius: 8, border: '1px solid var(--border)' }} />
+                                        <input type="text" placeholder="Roll #" value={newRollNo} onChange={e => setNewRollNo(e.target.value)} style={{ flex: 1, padding: 8, borderRadius: 8, border: '1px solid var(--border)' }} />
+                                        <button className="btn-action btn-dark" style={{ width: 'auto', padding: '8px 12px' }} onClick={handleAddStudent}>+ Add</button>
+                                    </div>
+                                )}
+                            </div>
+
+                            {currentStudent && (
+                                <div className="card">
+                                    <div className="card-title">
+                                        <span>📅 {currentStudent.name}'s Attendance</span>
+                                        {view === 'TEACHER' && <span style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: 700 }}>● Teacher Edit Active</span>}
+                                    </div>
+                                    <div className="days-grid">
+                                        {currentStudent.attendance.slice(0, 31).map((d, i) => (
+                                            <div key={d.date} className={`day-box status-${d.status}`} onClick={() => toggleStatus(i)}>
+                                                <span className="day-name">{d.dayName}</span>
+                                                <span className="day-num">{d.dayNum}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    <div className={`toast ${toast.show ? 'show' : ''}`}>{toast.message}</div>
+                </div>
+            );
+        }
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>
