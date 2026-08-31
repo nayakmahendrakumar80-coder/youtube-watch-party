@@ -5,9 +5,7 @@ const { Server } = require('socket.io');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: { origin: "*" }
-});
+const io = new Server(server, { cors: { origin: '*' } });
 
 const PORT = process.env.PORT || 3000;
 
@@ -19,67 +17,45 @@ app.get('/', (req, res) => {
 
 const rooms = {};
 
-function generatePin() {
-  let pin;
-  do {
-    pin = Math.floor(1000 + Math.random() * 9000).toString();
-  } while (rooms[pin]);
-  return pin;
-}
-
 io.on('connection', (socket) => {
-  let currentRoom = null;
-
-  socket.on('create_room', (data) => {
-    const pin = generatePin();
-    currentRoom = pin;
+  socket.on('join_room', (data) => {
+    const { pin, videoId, isHost } = data;
     socket.join(pin);
 
-    rooms[pin] = {
-      videoId: data.videoId || 'dQw4w9WgXcQ',
-      currentTime: 0,
-      isPlaying: true
-    };
-
-    socket.emit('room_created', { pin, roomState: rooms[pin] });
-  });
-
-  socket.on('join_room', (pin) => {
-    if (rooms[pin]) {
-      currentRoom = pin;
-      socket.join(pin);
-      socket.emit('room_joined', { pin, roomState: rooms[pin] });
+    if (isHost || !rooms[pin]) {
+      rooms[pin] = {
+        videoId: videoId || 'dQw4w9WgXcQ',
+        currentTime: 0,
+        isPlaying: true
+      };
     } else {
-      socket.emit('join_error', 'Invalid PIN! Room does not exist.');
+      socket.emit('sync_initial_state', rooms[pin]);
     }
   });
 
   socket.on('player_play', (data) => {
-    if (!currentRoom || !rooms[currentRoom]) return;
-    rooms[currentRoom].isPlaying = true;
-    rooms[currentRoom].currentTime = data.currentTime;
-    socket.to(currentRoom).emit('player_play', data);
+    if (data.room && rooms[data.room]) {
+      rooms[data.room].isPlaying = true;
+      rooms[data.room].currentTime = data.currentTime;
+    }
+    socket.to(data.room).emit('player_play', data);
   });
 
   socket.on('player_pause', (data) => {
-    if (!currentRoom || !rooms[currentRoom]) return;
-    rooms[currentRoom].isPlaying = false;
-    rooms[currentRoom].currentTime = data.currentTime;
-    socket.to(currentRoom).emit('player_pause', data);
-  });
-
-  socket.on('player_seek', (data) => {
-    if (!currentRoom || !rooms[currentRoom]) return;
-    rooms[currentRoom].currentTime = data.currentTime;
-    socket.to(currentRoom).emit('player_seek', data);
+    if (data.room && rooms[data.room]) {
+      rooms[data.room].isPlaying = false;
+      rooms[data.room].currentTime = data.currentTime;
+    }
+    socket.to(data.room).emit('player_pause', data);
   });
 
   socket.on('change_video', (data) => {
-    if (!currentRoom || !rooms[currentRoom]) return;
-    rooms[currentRoom].videoId = data.videoId;
-    rooms[currentRoom].currentTime = 0;
-    rooms[currentRoom].isPlaying = true;
-    io.in(currentRoom).emit('change_video', data);
+    if (data.room && rooms[data.room]) {
+      rooms[data.room].videoId = data.videoId;
+      rooms[data.room].currentTime = 0;
+      rooms[data.room].isPlaying = true;
+    }
+    io.in(data.room).emit('change_video', data);
   });
 });
 
